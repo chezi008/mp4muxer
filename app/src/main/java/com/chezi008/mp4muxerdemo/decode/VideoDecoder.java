@@ -28,7 +28,13 @@ public class VideoDecoder {
     private MediaCodec mCodec;
     private MediaFormat mediaformat;
     private int mFrameRate = 30;
+    private Boolean UseSPSandPPS = true;
 
+//    private MediaMuxer mMuxer;
+//    private int mTrackIndex;
+
+    private ByteBuffer mCSD0;
+    private ByteBuffer mCSD1;
     private Context mContext;
     private long timeoutUs = 10000;
 
@@ -48,7 +54,33 @@ public class VideoDecoder {
         }
         //初始化编码器
         mediaformat = MediaFormat.createVideoFormat("video/avc", VIDEO_WIDTH, VIDEO_HEIGHT);
+        //获取h264中的pps及sps数据
+        if (UseSPSandPPS) {
+            byte[] header_default_sps = {0, 0, 0, 1, 103, 100, 0, 31, -84, -76, 2, -128, 45, -56};
+            byte[] header_default_pps = {0, 0, 0, 1, 104, -18, 60, 97, 15, -1, -16, -121, -1, -8, 67, -1, -4, 33, -1, -2, 16, -1, -1, 8, 127, -1, -64};
 
+            SPUtils spUtils = new SPUtils();
+            //读取之前保存的sps 和pps
+            byte[] header_sps = (byte[]) spUtils.readObject(mContext, MuxerMp4Activity.VIDEO_KEY_SPS);
+            byte[] header_pps = (byte[]) spUtils.readObject(mContext, MuxerMp4Activity.VIDEO_KEY_PPS);
+
+            if (header_sps != null) {
+                mCSD0 = ByteBuffer.wrap(header_sps);
+                mCSD1 = ByteBuffer.wrap(header_pps);
+            } else {
+                mCSD0 = ByteBuffer.wrap(header_default_sps);
+                mCSD1 = ByteBuffer.wrap(header_default_pps);
+                mCSD0.clear();
+                mCSD1.clear();
+            }
+            //设置sps和pps 如果设置不正确会导致合成的mp4视频作为文件预览的时候，预览图片是黑色的
+            //视频进度条拖拽画面会出现绿色，以及块状现象
+            mediaformat.setByteBuffer("csd-0", mCSD0);
+            mediaformat.setByteBuffer("csd-1", mCSD1);
+
+        }
+//        mediaformat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+//        mediaformat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1920 * 1080);
         //设置帧率
         mediaformat.setInteger(MediaFormat.KEY_FRAME_RATE, mFrameRate);
         mCodec.configure(mediaformat, surface, null, 0);

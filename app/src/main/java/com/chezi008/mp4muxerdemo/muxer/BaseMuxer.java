@@ -52,18 +52,10 @@ public class BaseMuxer {
         mMuxer.start();
     }
 
-    private long systemTimeStamp;
-    private boolean isInitTimeStamp;
-
     public synchronized void writeSampleData(ByteBuffer outputBuffer, MediaCodec.BufferInfo bufferInfo, boolean isVideo) {
-        if (mAudioTrackIndex == -1 || mVideoTrackIndex == -1) {
+        if (mVideoTrackIndex == -1 ) {//|| mAudioTrackIndex == -1
             Log.i(TAG, String.format("pumpStream [%s] but muxer is not start.ignore..", isVideo ? "video" : "audio"));
             return;
-        }
-        //初始化时间
-        if (!isInitTimeStamp) {
-            systemTimeStamp = System.currentTimeMillis();
-            isInitTimeStamp = true;
         }
 
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
@@ -80,9 +72,6 @@ public class BaseMuxer {
             outputBuffer.position(bufferInfo.offset);
             outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
 
-            int currentTimeStamp = (int) (System.currentTimeMillis()-systemTimeStamp);
-            bufferInfo.presentationTimeUs = currentTimeStamp*1000;
-
             if (VERBOSE)
                 Log.d(TAG, String.format("sent %s [" + bufferInfo.size + "] with timestamp:[%d] to muxer", isVideo ? "video" : "audio", bufferInfo.presentationTimeUs ));
             mMuxer.writeSampleData(isVideo ? mVideoTrackIndex : mAudioTrackIndex, outputBuffer, bufferInfo);
@@ -97,7 +86,7 @@ public class BaseMuxer {
 
     public synchronized void release() {
         if (mMuxer != null) {
-            if (mAudioTrackIndex != -1 && mVideoTrackIndex != -1) {
+            if ( mVideoTrackIndex != -1) {//mAudioTrackIndex != -1 &&
                 if (VERBOSE)
                     Log.i(TAG, String.format("muxer is started. now it will be stoped."));
                 try {

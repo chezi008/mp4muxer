@@ -14,6 +14,7 @@ import com.chezi008.mp4muxerdemo.decode.VideoDecoder;
 import com.chezi008.mp4muxerdemo.encode.AudioEncoder;
 import com.chezi008.mp4muxerdemo.file.FileConstant;
 import com.chezi008.mp4muxerdemo.file.H264ReadRunable;
+import com.chezi008.mp4muxerdemo.helper.MP4EncoderHelper;
 import com.chezi008.mp4muxerdemo.muxer.BaseMuxer;
 import com.chezi008.mp4muxerdemo.utils.SPUtils;
 
@@ -67,7 +68,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 Log.d(TAG, "onSurfaceTextureAvailable: ");
                 initVideoCodec(surface);
-                initAudioCoder();
+//                initAudioCoder();
                 initMediaMuxer();
             }
 
@@ -112,12 +113,12 @@ public class MuxerMp4Activity extends AppCompatActivity {
                     if (videoTimeStamp == 0) {
                         return;
                     }
-//                    audioTimeUs = audioTimeStamp++ * (1024 * 1000 * 1000 / 16000);
-                    audioTimeStamp++;
-//                    bufferInfo.presentationTimeUs = audioTimeUs;
-//                    bufferInfo.offset += 7;
-//                    bufferInfo.size -= 7;
-                    mBaseMuxer.writeSampleData(byteBuffer, bufferInfo, false);
+                    audioTimeUs = audioTimeStamp++ * (1024 * 1000* 1000   / 16000);
+//                    audioTimeStamp++;
+                    bufferInfo.presentationTimeUs = audioTimeUs;
+                    bufferInfo.offset += 7;
+                    bufferInfo.size -= 7;
+//                    mBaseMuxer.writeSampleData(byteBuffer, bufferInfo, false);
                 }
             });
             mAudioEncoder.prepare();
@@ -133,7 +134,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
     private void initMediaMuxer() {
         mBaseMuxer = new BaseMuxer();
         mBaseMuxer.addVideoTrack(mVideoDecode.getMediaformat());
-        mBaseMuxer.addAudioTrack(mAudioEncoder.getMediaFormat());
+//        mBaseMuxer.addAudioTrack(mAudioEncoder.getMediaFormat());
         mBaseMuxer.startMuxer();
     }
 
@@ -145,27 +146,31 @@ public class MuxerMp4Activity extends AppCompatActivity {
             @Override
             public void onFrameData(byte[] datas) {
                 mVideoDecode.decodeFrame(datas);
-                addMuxerVideoData(datas);
                 if (haveGetSpsInfo) {
+                    Log.d(TAG, "onFrameData: -->datas[4]:" + datas[4]);
+                    addMuxerVideoData(datas);
                     return;
                 }
                 //找sps和pps
-                Log.d(TAG, "onFrameData: " + datas);
                 if ((datas[4] & 0x1f) == 7) {//sps
+                    addMuxerVideoData(datas);
                     SPUtils.saveObject(MuxerMp4Activity.this, VIDEO_KEY_SPS, datas);
                     Log.d(TAG, "onFrameData: ");
                 } else if ((datas[4] & 0x1f) == 8) {//pps
+                    addMuxerVideoData(datas);
                     SPUtils.saveObject(MuxerMp4Activity.this, VIDEO_KEY_PPS, datas);
+                }else if((datas[4] & 0x1f) == 5){
+                    //第一帧为I帧
                     haveGetSpsInfo = true;
+                    addMuxerVideoData(datas);
                 }
-
 
             }
 
             @Override
             public void onStopRead() {
                 mVideoDecode.release();
-                mAudioEncoder.stop();
+//                mAudioEncoder.stop();
                 mBaseMuxer.release();
             }
         });
@@ -174,7 +179,6 @@ public class MuxerMp4Activity extends AppCompatActivity {
     }
 
     MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-    private long timeUs = System.nanoTime() / 1000;
 
     private void addMuxerVideoData(byte[] datas) {
 
@@ -191,8 +195,8 @@ public class MuxerMp4Activity extends AppCompatActivity {
             bufferInfo.flags = 0;
         }
         ByteBuffer buffer = ByteBuffer.wrap(datas, bufferInfo.offset, bufferInfo.size);
-        videoTimeStamp++;
-//        bufferInfo.presentationTimeUs = videoTimeStamp++ * (1000 * 1000 / 30);
+//        videoTimeStamp++;
+        bufferInfo.presentationTimeUs = videoTimeStamp++ * (1000 * 1000 / 30);
         mBaseMuxer.writeSampleData(buffer, bufferInfo, true);
     }
 }
