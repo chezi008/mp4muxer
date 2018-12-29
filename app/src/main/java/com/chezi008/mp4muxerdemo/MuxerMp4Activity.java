@@ -10,11 +10,10 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 
-import com.chezi008.mp4muxerdemo.decode.VideoDecoder;
-import com.chezi008.mp4muxerdemo.encode.AudioEncoder;
+import com.chezi008.mp4muxerdemo.decode.H264Decoder;
+import com.chezi008.mp4muxerdemo.encode.AACEncoder;
 import com.chezi008.mp4muxerdemo.file.FileConstant;
 import com.chezi008.mp4muxerdemo.file.H264ReadRunable;
-import com.chezi008.mp4muxerdemo.helper.MP4EncoderHelper;
 import com.chezi008.mp4muxerdemo.muxer.BaseMuxer;
 import com.chezi008.mp4muxerdemo.utils.SPUtils;
 
@@ -32,8 +31,8 @@ public class MuxerMp4Activity extends AppCompatActivity {
     public static final String VIDEO_KEY_SPS = "video_sps";
     public static final String VIDEO_KEY_PPS = "video_pps";
 
-    private VideoDecoder mVideoDecode;
-    private AudioEncoder mAudioEncoder;
+    private H264Decoder mVideoDecode;
+    private AACEncoder mAACEncoder;
     private BaseMuxer mBaseMuxer;
     private TextureView mTextureView;
 
@@ -49,7 +48,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
     }
 
     private void initVideoCodec(SurfaceTexture surface) {
-        mVideoDecode = new VideoDecoder(this);
+        mVideoDecode = new H264Decoder(this);
         mVideoDecode.initCodec(new Surface(surface));
         mVideoDecode.start();
     }
@@ -68,7 +67,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 Log.d(TAG, "onSurfaceTextureAvailable: ");
                 initVideoCodec(surface);
-//                initAudioCoder();
+                initAudioCoder();
                 initMediaMuxer();
             }
 
@@ -94,10 +93,10 @@ public class MuxerMp4Activity extends AppCompatActivity {
     private long audioTimeUs;
 
     private void initAudioCoder() {
-        mAudioEncoder = new AudioEncoder();
+        mAACEncoder = new AACEncoder();
         try {
-            mAudioEncoder.setSavePath(FileConstant.aacFilePath);
-            mAudioEncoder.setAudioEnncoderListener(new AudioEncoder.AudioEnncoderListener() {
+            mAACEncoder.setSavePath(FileConstant.aacFilePath);
+            mAACEncoder.setAudioEnncoderListener(new AACEncoder.AudioEnncoderListener() {
                 @Override
                 public void getAudioData(byte[] temp) {
 
@@ -121,8 +120,8 @@ public class MuxerMp4Activity extends AppCompatActivity {
 //                    mBaseMuxer.writeSampleData(byteBuffer, bufferInfo, false);
                 }
             });
-            mAudioEncoder.prepare();
-            mAudioEncoder.start();
+            mAACEncoder.prepare();
+            mAACEncoder.start();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -134,7 +133,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
     private void initMediaMuxer() {
         mBaseMuxer = new BaseMuxer();
         mBaseMuxer.addVideoTrack(mVideoDecode.getMediaformat());
-//        mBaseMuxer.addAudioTrack(mAudioEncoder.getMediaFormat());
+//        mBaseMuxer.addAudioTrack(mAACEncoder.getMediaFormat());
         mBaseMuxer.startMuxer();
     }
 
@@ -170,7 +169,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
             @Override
             public void onStopRead() {
                 mVideoDecode.release();
-//                mAudioEncoder.stop();
+//                mAACEncoder.stop();
                 mBaseMuxer.release();
             }
         });

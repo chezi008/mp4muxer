@@ -9,13 +9,11 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 
-import com.chezi008.mp4muxerdemo.decode.VideoDecoder;
+import com.chezi008.mp4muxerdemo.decode.H264Decoder;
 import com.chezi008.mp4muxerdemo.file.FileConstant;
 import com.chezi008.mp4muxerdemo.file.H264ReadRunable;
 import com.chezi008.mp4muxerdemo.helper.MP4EncoderHelper;
 import com.chezi008.mp4muxerdemo.utils.SPUtils;
-
-import java.util.Arrays;
 
 public class MP4V2Activity extends AppCompatActivity {
     String TAG = getClass().getSimpleName();
@@ -23,7 +21,7 @@ public class MP4V2Activity extends AppCompatActivity {
     public static final String VIDEO_KEY_SPS = "video_sps";
     public static final String VIDEO_KEY_PPS = "video_pps";
 
-    private VideoDecoder mVideoDecode;
+    private H264Decoder mVideoDecode;
     private TextureView mTextureView;
     private boolean haveGetSpsInfo;
 
@@ -75,7 +73,7 @@ public class MP4V2Activity extends AppCompatActivity {
     }
 
     private void initVideoCodec(SurfaceTexture surface) {
-        mVideoDecode = new VideoDecoder(this);
+        mVideoDecode = new H264Decoder(this);
         mVideoDecode.initCodec(new Surface(surface));
         mVideoDecode.start();
     }

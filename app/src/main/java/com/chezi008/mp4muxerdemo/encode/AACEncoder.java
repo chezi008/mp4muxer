@@ -19,7 +19,7 @@ import java.nio.ByteBuffer;
  * 邮箱：chezi008@qq.com
  */
 
-public class AudioEncoder implements Runnable {
+public class AACEncoder implements Runnable {
     private String TAG = getClass().getSimpleName();
     private String mime = "audio/mp4a-latm";
     private AudioRecord mRecorder;
@@ -28,9 +28,9 @@ public class AudioEncoder implements Runnable {
     private int rate = 51200;//9600
 
     //录音设置
-    private int sampleRate = 16000;   //采样率，默认44.1k
-    private int channelCount = 2;     //音频采样通道，默认2通道
-    private int channelConfig = AudioFormat.CHANNEL_IN_STEREO;        //通道设置，默认立体声
+    private int sampleRate = 8000;   //采样率，默认44.1k
+    private int channelCount = 1;     //音频采样通道，默认2通道
+    private int channelConfig = AudioFormat.CHANNEL_IN_MONO;        //通道设置，默认立体声
     private int audioFormat = AudioFormat.ENCODING_PCM_16BIT;     //设置采样数据格式，默认16比特PCM
     private FileOutputStream fos;
 
@@ -42,7 +42,7 @@ public class AudioEncoder implements Runnable {
     private String mSavePath;
     private AudioEnncoderListener audioEnncoderListener;
 
-    public AudioEncoder() {
+    public AACEncoder() {
     }
 
     public void setAudioEnncoderListener(AudioEnncoderListener audioEnncoderListener) {
@@ -131,12 +131,14 @@ public class AudioEncoder implements Runnable {
     //TODO Add End Flag
     private void readOutputData() throws IOException {
         int index = mEnc.dequeueInputBuffer(-1);
+        long pts = System.nanoTime() / 1000;
         if (index >= 0) {
             final ByteBuffer buffer = getInputBuffer(index);
             buffer.clear();
             int length = mRecorder.read(buffer, bufferSize);
             if (length > 0) {
-                mEnc.queueInputBuffer(index, 0, length, System.nanoTime() / 1000, 0);//System.nanoTime() / 1000
+                mEnc.queueInputBuffer(index, 0, length,pts , 0);//System.nanoTime() / 1000
+                Log.d(TAG, "queueInputBuffer:  pts:"+pts);
             } else {
                 Log.e(TAG, "length-->" + length);
             }
@@ -152,10 +154,11 @@ public class AudioEncoder implements Runnable {
                 byte[] temp = new byte[mInfo.size + 7];
                 buffer.get(temp, 7, mInfo.size);
                 addADTStoPacket(temp, temp.length);
-                Log.d(TAG, "readOutputData: temp.length-->" + temp.length);
+//                Log.d(TAG, "readOutputData: temp.length-->" + temp.length);
                 fos.write(temp);
                 audioEnncoderListener.getAudioBuffer(buffer, mInfo);
                 audioEnncoderListener.getAudioData(temp);
+                Log.d(TAG, "dequeueOutputBuffer: pts"+mInfo.presentationTimeUs);
                 mEnc.releaseOutputBuffer(outIndex, false);
             } else if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 
@@ -173,7 +176,7 @@ public class AudioEncoder implements Runnable {
      */
     private void addADTStoPacket(byte[] packet, int packetLen) {
         int profile = 2;  //AAC LC
-        int freqIdx = 8;  //44.1KHz--4  这个参数跟采样率有关sampleRate，8000-->11 16000-->8 44100-->4
+        int freqIdx = 11;  //44.1KHz--4  这个参数跟采样率有关sampleRate，8000-->11 16000-->8 44100-->4
         int chanCfg = channelCount;  //CPE  这个参数跟通道数有关channelCount   chanCfg = 这个参数跟通道数有关channelCount
         packet[0] = (byte) 0xFF;
         packet[1] = (byte) 0xF9;

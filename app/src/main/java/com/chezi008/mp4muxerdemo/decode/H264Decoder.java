@@ -19,7 +19,7 @@ import java.nio.ByteBuffer;
  * 邮箱：chezi008@163.com
  */
 
-public class VideoDecoder {
+public class H264Decoder {
     private String TAG = getClass().getSimpleName();
 
     private static final int VIDEO_WIDTH = 1280;
@@ -41,7 +41,7 @@ public class VideoDecoder {
     private ByteBuffer[] inputBuffers;
     private MediaCodec.BufferInfo bufferInfo;
 
-    public VideoDecoder(Context context) {
+    public H264Decoder(Context context) {
         this.mContext = context;
     }
 
