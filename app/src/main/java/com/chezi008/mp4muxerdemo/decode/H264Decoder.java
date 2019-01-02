@@ -39,7 +39,6 @@ public class H264Decoder {
     private long timeoutUs = 10000;
 
     private ByteBuffer[] inputBuffers;
-    private MediaCodec.BufferInfo bufferInfo;
 
     public H264Decoder(Context context) {
         this.mContext = context;
@@ -105,25 +104,30 @@ public class H264Decoder {
             mCodec.start();
 
             inputBuffers = mCodec.getInputBuffers();
-            bufferInfo = new MediaCodec.BufferInfo();
+
         }
     }
-
+    MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
     public void decodeFrame(byte[] frame) {
-        int inIndex = mCodec.dequeueInputBuffer(System.nanoTime() / 1000);
+        long pts = System.nanoTime() / 1000;
+        int inIndex = mCodec.dequeueInputBuffer(-1);
         if (inIndex >= 0) {
             ByteBuffer byteBuffer = inputBuffers[inIndex];
             byteBuffer.clear();
             byteBuffer.put(frame);
-            mCodec.queueInputBuffer(inIndex, 0, frame.length, 0, 0);
+            mCodec.queueInputBuffer(inIndex, 0, frame.length, pts, 0);
         }
-        int outIndex = mCodec.dequeueOutputBuffer(bufferInfo, timeoutUs);
+        int outIndex = mCodec.dequeueOutputBuffer(bufferInfo, 0);
         if (outIndex >= 0) {
             boolean doRender = (bufferInfo.size != 0);
             //对outputbuffer的处理完后，调用这个函数把buffer重新返回给codec类。
             mCodec.releaseOutputBuffer(outIndex, doRender);
+            Log.d(TAG, "video: pts:"+bufferInfo.presentationTimeUs+",rPts:"+pts);
         } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-
         }
+    }
+
+    public interface H264DecoderListener{
+        void ondecode(byte[] out,MediaCodec.BufferInfo info);
     }
 }

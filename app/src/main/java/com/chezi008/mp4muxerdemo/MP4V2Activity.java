@@ -83,7 +83,7 @@ public class MP4V2Activity extends AppCompatActivity {
         h264ReadRunable.setH264ReadListener(new H264ReadRunable.H264ReadListener() {
             @Override
             public void onFrameData(byte[] datas) {
-                mVideoDecode.decodeFrame(datas);
+//                mVideoDecode.decodeFrame(datas);
                 if (haveGetSpsInfo) {
                     Log.d(TAG, "onFrameData: -->datas[4]:" + datas[4]);
                     MP4EncoderHelper.writeH264Data(datas, datas.length);

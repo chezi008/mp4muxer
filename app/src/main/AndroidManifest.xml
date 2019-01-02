@@ -22,6 +22,7 @@
         </activity>
         <activity android:name=".MuxerMp4Activity" />
         <activity android:name=".MP4V2Activity"></activity>
+        <activity android:name=".hw.HWRecorderActivity"></activity>
     </application>
 
 </manifest>

@@ -9,6 +9,8 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
 
+import com.chezi008.mp4muxerdemo.muxer.BaseMuxer;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,7 +27,7 @@ public class AACEncoder implements Runnable {
     private AudioRecord mRecorder;
     private MediaCodec mEnc;
     private MediaFormat mMediaFormat;
-    private int rate = 51200;//9600
+    private int rate = 128000;//9600
 
     //录音设置
     private int sampleRate = 8000;   //采样率，默认44.1k
@@ -87,7 +89,7 @@ public class AACEncoder implements Runnable {
 
 //        mCSD1 = ByteBuffer.wrap(header_pps);
 //        mCSD1.clear();
-        mMediaFormat.setByteBuffer("csd-0", mCSD0);
+//        mMediaFormat.setByteBuffer("csd-0", mCSD0);
 //        mMediaFormat.setByteBuffer("csd-1", mCSD1);
 
         mEnc = MediaCodec.createEncoderByType(mime);
@@ -128,6 +130,8 @@ public class AACEncoder implements Runnable {
         }
     }
 
+
+    private boolean isInit;
     //TODO Add End Flag
     private void readOutputData() throws IOException {
         int index = mEnc.dequeueInputBuffer(-1);
@@ -138,7 +142,7 @@ public class AACEncoder implements Runnable {
             int length = mRecorder.read(buffer, bufferSize);
             if (length > 0) {
                 mEnc.queueInputBuffer(index, 0, length,pts , 0);//System.nanoTime() / 1000
-                Log.d(TAG, "queueInputBuffer:  pts:"+pts);
+//                Log.d(TAG, "queueInputBuffer:  pts:"+pts);
             } else {
                 Log.e(TAG, "length-->" + length);
             }
@@ -151,21 +155,36 @@ public class AACEncoder implements Runnable {
             if (outIndex >= 0) {
                 ByteBuffer buffer = getOutputBuffer(outIndex);
                 buffer.position(mInfo.offset);
-                byte[] temp = new byte[mInfo.size + 7];
-                buffer.get(temp, 7, mInfo.size);
-                addADTStoPacket(temp, temp.length);
+//                byte[] temp = new byte[mInfo.size + 7];
+//                buffer.get(temp, 7, mInfo.size);
+//                addADTStoPacket(temp, temp.length);
 //                Log.d(TAG, "readOutputData: temp.length-->" + temp.length);
-                fos.write(temp);
-                audioEnncoderListener.getAudioBuffer(buffer, mInfo);
-                audioEnncoderListener.getAudioData(temp);
-                Log.d(TAG, "dequeueOutputBuffer: pts"+mInfo.presentationTimeUs);
+//                fos.write(temp);
+//                audioEnncoderListener.getAudioBuffer(buffer, mInfo);
+//                audioEnncoderListener.getAudioData(temp);
+               if (isInit){
+                   muxer.writeSampleData(buffer,mInfo,false);
+               }
+                Log.d(TAG, "audio: pts"+mInfo.presentationTimeUs);
                 mEnc.releaseOutputBuffer(outIndex, false);
             } else if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 
             } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                Log.d(TAG, "readOutputData: "+mEnc.getOutputFormat());
+                if (!isInit){
+                    muxer.addAudioTrack(mEnc.getOutputFormat());
+                    muxer.startMuxer();
+                    isInit = true;
+                }
 
             }
         } while (outIndex >= 0);
+    }
+
+    private BaseMuxer muxer;
+
+    public void setMuxer(BaseMuxer muxer) {
+        this.muxer = muxer;
     }
 
     /**

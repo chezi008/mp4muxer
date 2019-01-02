@@ -57,7 +57,7 @@ public class H264ReadRunable implements Runnable {
                         bufferLength -=naluIndex;
                         System.arraycopy(buffer,naluIndex,buffer,0,offset);
                         i = 5;
-                        Thread.sleep(30);
+                        Thread.sleep(40);
                     }
                 }
 

@@ -12,6 +12,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.chezi008.mp4muxerdemo.hw.HWRecorderActivity;
+
 /**
  * 描述：
  * 作者：chezi008 on 2017/6/29 16:32
@@ -93,6 +95,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, MP4V2Activity.class);
+                startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.btnHw).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, HWRecorderActivity.class);
                 startActivity(intent);
             }
         });

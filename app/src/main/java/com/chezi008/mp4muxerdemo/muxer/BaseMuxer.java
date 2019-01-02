@@ -53,7 +53,7 @@ public class BaseMuxer {
     }
 
     public synchronized void writeSampleData(ByteBuffer outputBuffer, MediaCodec.BufferInfo bufferInfo, boolean isVideo) {
-        if (mVideoTrackIndex == -1 ) {//|| mAudioTrackIndex == -1
+        if (mVideoTrackIndex == -1 &&mAudioTrackIndex == -1) {//|| mAudioTrackIndex == -1
             Log.i(TAG, String.format("pumpStream [%s] but muxer is not start.ignore..", isVideo ? "video" : "audio"));
             return;
         }
@@ -61,6 +61,7 @@ public class BaseMuxer {
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             // The codec config data was pulled out and fed to the muxer when we got
             // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
+            bufferInfo.size = 0;
         } else if (bufferInfo.size != 0) {
 
 

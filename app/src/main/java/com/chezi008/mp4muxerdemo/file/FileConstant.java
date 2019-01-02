@@ -11,7 +11,7 @@ import java.io.File;
  */
 
 public class FileConstant {
-    public static final String baseFile = Environment.getExternalStorageDirectory().getPath();
+    public static final String baseFile = Environment.getExternalStorageDirectory().getPath()+"/mp4muxer";
     public static final String h264FileName = "mtv.h264";
     public static final String mp4FileName = "mtv.mp4";
     public static final String aacFileName = "test.aac";

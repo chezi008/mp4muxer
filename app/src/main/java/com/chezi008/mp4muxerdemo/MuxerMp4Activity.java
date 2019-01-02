@@ -19,6 +19,10 @@ import com.chezi008.mp4muxerdemo.utils.SPUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  *
@@ -36,8 +40,6 @@ public class MuxerMp4Activity extends AppCompatActivity {
     private BaseMuxer mBaseMuxer;
     private TextureView mTextureView;
 
-    private int videoTimeStamp;
-    private int audioTimeStamp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,12 +54,23 @@ public class MuxerMp4Activity extends AppCompatActivity {
         mVideoDecode.initCodec(new Surface(surface));
         mVideoDecode.start();
     }
-
+    Future<?> submit;
+    private long startPts;
     private void initView() {
         Button btn_play = (Button) findViewById(R.id.btn_play);
         btn_play.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                initVideoCodec(mTextureView.getSurfaceTexture());
+                initAudioCoder();
+                initMediaMuxer();
+//                if (submit==null||submit.isDone()){
+//                    submit = es.submit(muxerRunnable);
+//                }else {
+//                    submit.cancel(true);
+//                    submit = es.submit(muxerRunnable);
+//                }
+
                 readLocalFile();
             }
         });
@@ -66,9 +79,6 @@ public class MuxerMp4Activity extends AppCompatActivity {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 Log.d(TAG, "onSurfaceTextureAvailable: ");
-                initVideoCodec(surface);
-                initAudioCoder();
-                initMediaMuxer();
             }
 
             @Override
@@ -90,8 +100,6 @@ public class MuxerMp4Activity extends AppCompatActivity {
         });
     }
 
-    private long audioTimeUs;
-
     private void initAudioCoder() {
         mAACEncoder = new AACEncoder();
         try {
@@ -104,20 +112,13 @@ public class MuxerMp4Activity extends AppCompatActivity {
 
                 @Override
                 public void getAudioBuffer(ByteBuffer byteBuffer, MediaCodec.BufferInfo bufferInfo) {
-//                    if (audioTimeUs == 0) {
-//                        audioTimeUs = MuxerMp4Activity.this.bufferInfo.presentationTimeUs;
-//                    } else {
-//                        audioTimeUs += 1000 * 1000 / 30;
-//                    }
-                    if (videoTimeStamp == 0) {
+                    if (startPts == 0) {
                         return;
                     }
-                    audioTimeUs = audioTimeStamp++ * (1024 * 1000* 1000   / 16000);
-//                    audioTimeStamp++;
-                    bufferInfo.presentationTimeUs = audioTimeUs;
+                    bufferInfo.presentationTimeUs = System.nanoTime()/1000-startPts;
                     bufferInfo.offset += 7;
                     bufferInfo.size -= 7;
-//                    mBaseMuxer.writeSampleData(byteBuffer, bufferInfo, false);
+                    mBaseMuxer.writeSampleData(byteBuffer, bufferInfo, false);
                 }
             });
             mAACEncoder.prepare();
@@ -132,9 +133,10 @@ public class MuxerMp4Activity extends AppCompatActivity {
 
     private void initMediaMuxer() {
         mBaseMuxer = new BaseMuxer();
-        mBaseMuxer.addVideoTrack(mVideoDecode.getMediaformat());
+        mAACEncoder.setMuxer(mBaseMuxer);
+//        mBaseMuxer.addVideoTrack(mVideoDecode.getMediaformat());
 //        mBaseMuxer.addAudioTrack(mAACEncoder.getMediaFormat());
-        mBaseMuxer.startMuxer();
+//        mBaseMuxer.startMuxer();
     }
 
     private boolean haveGetSpsInfo;
@@ -169,7 +171,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
             @Override
             public void onStopRead() {
                 mVideoDecode.release();
-//                mAACEncoder.stop();
+                mAACEncoder.stop();
                 mBaseMuxer.release();
             }
         });
@@ -177,8 +179,29 @@ public class MuxerMp4Activity extends AppCompatActivity {
         readFileThread.start();
     }
 
-    MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
 
+
+    private void addMuxerVideoData(byte[] datas,MediaCodec.BufferInfo bufferInfo) {
+
+        if (mBaseMuxer == null) return;
+        bufferInfo.offset = 0;
+        bufferInfo.size = datas.length;
+//        if ((datas[4] & 0x1f) == 5) {
+//            Log.d(TAG, "onDecodeVideoFrame: -->I帧");
+//            bufferInfo.flags = MediaCodec.BUFFER_FLAG_KEY_FRAME;
+//        } else if ((datas[4] & 0x1f) == 7 || (datas[4] & 0x1f) == 8) {
+//            Log.d(TAG, "addMuxerVideoData: -->sps or pps");
+//            bufferInfo.flags = MediaCodec.BUFFER_FLAG_CODEC_CONFIG;
+//        } else {
+//            bufferInfo.flags = 0;
+//        }
+        ByteBuffer buffer = ByteBuffer.wrap(datas, bufferInfo.offset, bufferInfo.size);
+//        videoTimeStamp+=40;
+//        bufferInfo.presentationTimeUs = videoTimeStamp;
+        mBaseMuxer.writeSampleData(buffer, bufferInfo, true);
+    }
+
+    MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
     private void addMuxerVideoData(byte[] datas) {
 
         if (mBaseMuxer == null) return;
@@ -194,8 +217,34 @@ public class MuxerMp4Activity extends AppCompatActivity {
             bufferInfo.flags = 0;
         }
         ByteBuffer buffer = ByteBuffer.wrap(datas, bufferInfo.offset, bufferInfo.size);
-//        videoTimeStamp++;
-        bufferInfo.presentationTimeUs = videoTimeStamp++ * (1000 * 1000 / 30);
-        mBaseMuxer.writeSampleData(buffer, bufferInfo, true);
+        long pts = System.nanoTime()/1000;
+        if (startPts == 0) {
+            startPts = pts;
+        }
+        bufferInfo.presentationTimeUs = System.nanoTime()/1000-startPts;
+//        mBaseMuxer.writeSampleData(buffer, bufferInfo, true);
     }
+
+    static class DataBean{
+        byte[] data;
+        MediaCodec.BufferInfo bufferInfo;
+    }
+
+    private LinkedBlockingQueue<DataBean> queue = new LinkedBlockingQueue();
+
+    private ExecutorService es = Executors.newCachedThreadPool();
+    private Runnable muxerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                while (true){
+                    DataBean dataBean = queue.take();
+                    addMuxerVideoData(dataBean.data,dataBean.bufferInfo);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+    };
 }
