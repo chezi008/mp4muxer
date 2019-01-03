@@ -122,7 +122,7 @@ public class H264Decoder {
             boolean doRender = (bufferInfo.size != 0);
             //对outputbuffer的处理完后，调用这个函数把buffer重新返回给codec类。
             mCodec.releaseOutputBuffer(outIndex, doRender);
-            Log.d(TAG, "video: pts:"+bufferInfo.presentationTimeUs+",rPts:"+pts);
+//            Log.d(TAG, "video: pts:"+bufferInfo.presentationTimeUs+",rPts:"+pts);
         } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
         }
     }

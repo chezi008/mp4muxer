@@ -9,14 +9,13 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.util.Log;
 
-import com.chezi008.mp4muxerdemo.muxer.BaseMuxer;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  * 描述：
+ *
  * 作者：chezi008 on 2017/6/26 10:14
  * 邮箱：chezi008@qq.com
  */
@@ -36,7 +35,6 @@ public class AACEncoder implements Runnable {
     private int audioFormat = AudioFormat.ENCODING_PCM_16BIT;     //设置采样数据格式，默认16比特PCM
     private FileOutputStream fos;
 
-    private byte[] buffer;
     private boolean isRecording;
     private Thread mThread;
     private int bufferSize;
@@ -50,54 +48,26 @@ public class AACEncoder implements Runnable {
     public void setAudioEnncoderListener(AudioEnncoderListener audioEnncoderListener) {
         this.audioEnncoderListener = audioEnncoderListener;
     }
-
-    public void setMime(String mime) {
-        this.mime = mime;
-    }
-
-    public void setRate(int rate) {
-        this.rate = rate;
-    }
-
-    public void setSampleRate(int sampleRate) {
-        this.sampleRate = sampleRate;
-    }
-
     public void setSavePath(String path) {
         this.mSavePath = path;
     }
 
-    public MediaFormat getMediaFormat() {
-        return mMediaFormat;
-    }
-
-    private ByteBuffer mCSD0;
-    private ByteBuffer mCSD1;
 
     public void prepare() throws IOException {
-        fos = new FileOutputStream(mSavePath);
+        if (isWriteLocaAAC){
+            fos = new FileOutputStream(mSavePath);
+        }
         //音频编码相关
         mMediaFormat = MediaFormat.createAudioFormat(mime, sampleRate, channelCount);
         mMediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-//        mMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
+        mMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, rate);
-        byte[] header_sps = {20,16};
-        byte[] header_pps = {0, 0, 0, 1, 104, -18, 60, 97, 15, -1, -16, -121, -1, -8, 67, -1, -4, 33, -1, -2, 16, -1, -1, 8, 127, -1, -64};
-
-        mCSD0 = ByteBuffer.wrap(header_sps);
-//        mCSD0.clear();
-
-//        mCSD1 = ByteBuffer.wrap(header_pps);
-//        mCSD1.clear();
-//        mMediaFormat.setByteBuffer("csd-0", mCSD0);
-//        mMediaFormat.setByteBuffer("csd-1", mCSD1);
 
         mEnc = MediaCodec.createEncoderByType(mime);
         mEnc.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         //音频录制相关
         bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat) * 2;
-        buffer = new byte[bufferSize];
         mRecorder = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfig,
                 audioFormat, bufferSize);
     }
@@ -130,9 +100,8 @@ public class AACEncoder implements Runnable {
         }
     }
 
+    private boolean isWriteLocaAAC;
 
-    private boolean isInit;
-    //TODO Add End Flag
     private void readOutputData() throws IOException {
         int index = mEnc.dequeueInputBuffer(-1);
         long pts = System.nanoTime() / 1000;
@@ -141,7 +110,7 @@ public class AACEncoder implements Runnable {
             buffer.clear();
             int length = mRecorder.read(buffer, bufferSize);
             if (length > 0) {
-                mEnc.queueInputBuffer(index, 0, length,pts , 0);//System.nanoTime() / 1000
+                mEnc.queueInputBuffer(index, 0, length, pts, 0);//System.nanoTime() / 1000
 //                Log.d(TAG, "queueInputBuffer:  pts:"+pts);
             } else {
                 Log.e(TAG, "length-->" + length);
@@ -151,40 +120,32 @@ public class AACEncoder implements Runnable {
         int outIndex;
         do {
             outIndex = mEnc.dequeueOutputBuffer(mInfo, 0);
-            Log.e(TAG, "audio flag---->" + mInfo.flags + "/" + outIndex);
+//            Log.e(TAG, "audio flag---->" + mInfo.flags + "/" + outIndex);
             if (outIndex >= 0) {
                 ByteBuffer buffer = getOutputBuffer(outIndex);
-                buffer.position(mInfo.offset);
-//                byte[] temp = new byte[mInfo.size + 7];
-//                buffer.get(temp, 7, mInfo.size);
-//                addADTStoPacket(temp, temp.length);
-//                Log.d(TAG, "readOutputData: temp.length-->" + temp.length);
-//                fos.write(temp);
-//                audioEnncoderListener.getAudioBuffer(buffer, mInfo);
-//                audioEnncoderListener.getAudioData(temp);
-               if (isInit){
-                   muxer.writeSampleData(buffer,mInfo,false);
-               }
-                Log.d(TAG, "audio: pts"+mInfo.presentationTimeUs);
+                if (isWriteLocaAAC) {
+                    buffer.position(mInfo.offset);
+                    byte[] temp = new byte[mInfo.size + 7];
+                    buffer.get(temp, 7, mInfo.size);
+                    addADTStoPacket(temp, temp.length);
+                    Log.d(TAG, "readOutputData: temp.length-->" + temp.length);
+                    fos.write(temp);
+                }
+                if (audioEnncoderListener != null) {
+                    audioEnncoderListener.getAudioBuffer(buffer, mInfo);
+                }
+//                Log.d(TAG, "audio: pts"+mInfo.presentationTimeUs);
                 mEnc.releaseOutputBuffer(outIndex, false);
             } else if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 
             } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                Log.d(TAG, "readOutputData: "+mEnc.getOutputFormat());
-                if (!isInit){
-                    muxer.addAudioTrack(mEnc.getOutputFormat());
-                    muxer.startMuxer();
-                    isInit = true;
+                Log.d(TAG, "readOutputData: " + mEnc.getOutputFormat());
+                if (audioEnncoderListener != null) {
+                    audioEnncoderListener.getOutputFormat(mEnc.getOutputFormat());
                 }
 
             }
         } while (outIndex >= 0);
-    }
-
-    private BaseMuxer muxer;
-
-    public void setMuxer(BaseMuxer muxer) {
-        this.muxer = muxer;
     }
 
     /**
@@ -228,7 +189,6 @@ public class AACEncoder implements Runnable {
         while (isRecording) {
             try {
                 readOutputData();
-//                fos.write(buffer,0,length);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -236,9 +196,9 @@ public class AACEncoder implements Runnable {
     }
 
     public interface AudioEnncoderListener {
-        void getAudioData(byte[] temp);
-
         void getAudioBuffer(ByteBuffer byteBuffer, MediaCodec.BufferInfo bufferInfo);
+
+        void getOutputFormat(MediaFormat format);
     }
 
 }

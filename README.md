@@ -1,4 +1,4 @@
-## Android使用Jni mp4v2库将h264裸流合成mp4文件
+## H264/AAC实时流 录制成MP4格式的本地视频
 
 ### 建议使用场景
 #### 一般视频流有如下两种途径获取：
@@ -32,7 +32,8 @@
 3. CloseMP4File：转换完成后记得要释放内存，调用次方法
 4. WriteH264File：直接将本地h264文件转换成mp4。实现方法是一样的，只是在C++代码里面实现了，将h264数据分割成一帧一帧，再写入至输入文件中。
 
-### 一、mp4v2 方法的使用
+### 一、~~mp4v2 方法的使用~~
+**这个库太久没有维护了，还是建议使用官方API,即第二种方法。**
 同样，我在代码中封装了三个本地方法：
 
 	public static native void init(String mp4FilePath, int widht, int height);
@@ -43,7 +44,7 @@
 从方法名，可以看得出怎么使用，所以在这里就不多赘述了。项目里面提供了标准的h264测试文件mtv.h264。
 
 ### 二、MediaMuxer合成Mp4
-- 官方文档介绍：http://www.loverobots.cn/android-api/reference/android/media/MediaMuxer.html
+####官方文档介绍：http://www.loverobots.cn/android-api/reference/android/media/MediaMuxer.html
 ```
  MediaMuxer muxer = new MediaMuxer("temp.mp4", OutputFormat.MUXER_OUTPUT_MPEG_4);
  // More often, the MediaFormat will be retrieved from MediaCodec.getOutputFormat()
@@ -71,6 +72,50 @@
  muxer.stop();
  muxer.release();
 ```
+#### MediaMuxer的使用
+1. 初始化：
+```
+mMuxer = new MediaMuxer(outPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+```
+2. 根据自己情况添加track，不要方法添加，此操作必须在mMuxer start方法之前调用:
+```
+mVideoTrackIndex = mMuxer.addTrack(mediaFormat);
+ mAudioTrackIndex = mMuxer.addTrack(mediaFormat);
+```
+3. 写入数据
+```
+outputBuffer.position(bufferInfo.offset);
+outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
+mMuxer.writeSampleData(track, outputBuffer, bufferInfo);
+```
+4. 结束
+```
+ mMuxer.stop();
+ mMuxer.release();
+```
+**在结束的时候你可能会遇到几种异常：**
+- 没有CODEC_CONFIG：
+这是因为在写入数据的时候没有写入编码参数，h264的编码参数包含SPS和PPS。所以当你视频流遇到这些参数帧的时候，请设置好对应的参数。
+```
+bufferInfo.flags = MediaCodec.BUFFER_FLAG_CODEC_CONFIG;
+```
+AAC参数：PCM在用编码器编码成AAC格式音频的时候，编码器会在自动设置参数。
+```
+当outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED
+我们可以获取到，MediaFormat format = mEnc.getOutputFormat(),
+format就包含了CODEC_CONFIG。此时的format可直接作为addTrack（）的参数使用。
+```
+- 音视频同步
+方法里面传入的时间参数PTS的单位时：microseconds,微妙。
+```
+ long pts = System.nanoTime() / 1000;
+```
+直接使用当前时间戳会有问题，录制成的MP4总时间会很大。我使用一个相对时间，当前时间相对于开始的时间差。
+```
+bufferInfo.presentationTimeUs = System.nanoTime()/1000-startPts;
+```
+
+
 #### 使用中一些需要注意的地方
 
 	1. MediaFormat 可以在初始化编码器的时候获取
@@ -91,7 +136,10 @@ mediaformat = MediaFormat.createVideoFormat("video/avc", VIDEO_WIDTH, VIDEO_HEIG
 造成的原因是录制视频流的时候第一帧不是关键帧（I帧）,所以在使用writeH264Data方法的时候，记得第一帧传入关键帧。
 3. download下载的项目无法运行
 。。。这个，你就自己去配置编译环境了，代码都在这了。
-4. 关于音频写入的问题
-未完待续。。。
-5. 关于音视频同步的问题
-未完待续。。。
+4. 录制成的MP4第一帧模糊
+这是因为写数据的时候没有进行关键帧的判断，第一帧写入关键帧就不会有这个问题了。
+
+### 五、引用
+Android在MediaMuxer和MediaCodec用例：https://www.cnblogs.com/hrhguanli/p/5043610.html
+Grafika: https://github.com/google/grafika
+HWEncoderExperiments：https://github.com/OnlyInAmerica/HWEncoderExperiments/tree/audioonly/HWEncoderExperiments/src/main/java/net/openwatch/hwencoderexperiments
