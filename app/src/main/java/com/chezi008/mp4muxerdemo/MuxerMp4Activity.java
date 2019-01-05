@@ -134,6 +134,7 @@ public class MuxerMp4Activity extends AppCompatActivity {
     private void initMediaMuxer() {
         mMp4Muxer = new Mp4Muxer(FileConstant.mp4FilePath);
         mMp4Muxer.addVideoTrack(mVideoDecode.getMediaformat());
+//        mMp4Muxer.addAudioTrack(mAACEncoder.getMediaFormat());
         if (audioFormat!=null){
             mMp4Muxer.addAudioTrack(audioFormat);
         }

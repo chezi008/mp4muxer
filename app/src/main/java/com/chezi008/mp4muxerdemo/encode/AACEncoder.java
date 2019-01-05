@@ -62,6 +62,15 @@ public class AACEncoder implements Runnable {
         mMediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
         mMediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, rate);
+        byte[] data = new byte[]{(byte) 0x11, (byte) 0x90};
+
+        ByteBuffer mCSD0 = ByteBuffer.wrap(data);
+//        mCSD0.clear();
+
+//        mCSD1 = ByteBuffer.wrap(header_pps);
+//        mCSD1.clear();
+        mMediaFormat.setByteBuffer("csd-0", mCSD0);
+//        mMediaFormat.setByteBuffer("csd-1", mCSD1);
 
         mEnc = MediaCodec.createEncoderByType(mime);
         mEnc.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -70,6 +79,10 @@ public class AACEncoder implements Runnable {
         bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat) * 2;
         mRecorder = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfig,
                 audioFormat, bufferSize);
+    }
+
+    public MediaFormat getMediaFormat() {
+        return mMediaFormat;
     }
 
     public void start() throws InterruptedException {

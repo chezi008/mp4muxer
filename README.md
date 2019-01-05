@@ -94,13 +94,27 @@ mMuxer.writeSampleData(track, outputBuffer, bufferInfo);
  mMuxer.release();
 ```
 **在结束的时候你可能会遇到几种异常：**
-- 没有CODEC_CONFIG：
+- E/MPEG4Writer: Missing codec specific data：
 这是因为在写入数据的时候没有写入编码参数，h264的编码参数包含SPS和PPS。所以当你视频流遇到这些参数帧的时候，请设置好对应的参数。
 ```
-bufferInfo.flags = MediaCodec.BUFFER_FLAG_CODEC_CONFIG;
+ //设置sps和pps 如果设置不正确会导致合成的mp4视频作为文件预览的时候，预览图片是黑色的
+ //视频进度条拖拽画面会出现绿色，以及块状现象
+ mediaformat.setByteBuffer("csd-0", mCSD0);
+ mediaformat.setByteBuffer("csd-1", mCSD1);
+
 ```
 AAC参数：PCM在用编码器编码成AAC格式音频的时候，编码器会在自动设置参数。
 ```
+- There are no sync frames for video track
+这是因为没有设置关键帧的flag。
+```
+switch (nalType & 0x1f) {
+            case H264Decoder.NAL_TYPE_I:
+                bufferInfo.flags = MediaCodec.BUFFER_FLAG_KEY_FRAME;
+				break;
+}
+```
+
 当outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED
 我们可以获取到，MediaFormat format = mEnc.getOutputFormat(),
 format就包含了CODEC_CONFIG。此时的format可直接作为addTrack（）的参数使用。

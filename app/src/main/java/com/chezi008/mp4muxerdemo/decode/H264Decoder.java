@@ -124,6 +124,7 @@ public class H264Decoder {
             mCodec.releaseOutputBuffer(outIndex, doRender);
 //            Log.d(TAG, "video: pts:"+bufferInfo.presentationTimeUs+",rPts:"+pts);
         } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+
         }
     }
 
