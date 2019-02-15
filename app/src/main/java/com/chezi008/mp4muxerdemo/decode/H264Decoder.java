@@ -28,7 +28,7 @@ public class H264Decoder {
     private MediaCodec mCodec;
     private MediaFormat mediaformat;
     private int mFrameRate = 30;
-    private Boolean UseSPSandPPS = true;
+    private Boolean UseSPSandPPS = false;
 
 //    private MediaMuxer mMuxer;
 //    private int mTrackIndex;
@@ -84,6 +84,7 @@ public class H264Decoder {
         mediaformat.setInteger(MediaFormat.KEY_FRAME_RATE, mFrameRate);
         mCodec.configure(mediaformat, surface, null, 0);
 
+
     }
 
     public MediaFormat getMediaformat() {
@@ -124,11 +125,21 @@ public class H264Decoder {
             mCodec.releaseOutputBuffer(outIndex, doRender);
 //            Log.d(TAG, "video: pts:"+bufferInfo.presentationTimeUs+",rPts:"+pts);
         } else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-
+            MediaFormat outputFormat = mCodec.getOutputFormat();
+            if (h264DecoderListener != null) {
+                h264DecoderListener.outputFormat(outputFormat);
+            }
         }
+    }
+
+    private H264DecoderListener h264DecoderListener;
+
+    public void setH264DecoderListener(H264DecoderListener h264DecoderListener) {
+        this.h264DecoderListener = h264DecoderListener;
     }
 
     public interface H264DecoderListener{
         void ondecode(byte[] out,MediaCodec.BufferInfo info);
+        void outputFormat(MediaFormat outputFormat);
     }
 }

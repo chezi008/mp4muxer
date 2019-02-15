@@ -1,5 +1,6 @@
 ## H264/AAC实时流 录制成MP4格式的本地视频
-
+GITHUB:
+https://github.com/chezi008/mp4muxer
 ### 建议使用场景
 #### 一般视频流有如下两种途径获取：
 1. Android摄像头采集
@@ -105,6 +106,11 @@ mMuxer.writeSampleData(track, outputBuffer, bufferInfo);
 ```
 AAC参数：PCM在用编码器编码成AAC格式音频的时候，编码器会在自动设置参数。
 ```
+
+当outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED
+我们可以获取到，MediaFormat format = mEnc.getOutputFormat(),
+format就包含了CODEC_CONFIG。此时的format可直接作为addTrack（）的参数使用。
+```
 - There are no sync frames for video track
 这是因为没有设置关键帧的flag。
 ```
@@ -115,10 +121,6 @@ switch (nalType & 0x1f) {
 }
 ```
 
-当outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED
-我们可以获取到，MediaFormat format = mEnc.getOutputFormat(),
-format就包含了CODEC_CONFIG。此时的format可直接作为addTrack（）的参数使用。
-```
 - 音视频同步
 方法里面传入的时间参数PTS的单位时：microseconds,微妙。
 ```

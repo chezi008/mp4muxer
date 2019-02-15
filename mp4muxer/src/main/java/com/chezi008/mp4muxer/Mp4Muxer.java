@@ -52,23 +52,23 @@ public class Mp4Muxer {
             Log.i(TAG, String.format("pumpStream [%s] but muxer is not start.ignore..", "video"));
             return;
         }
-        writeData(outputBuffer,bufferInfo,mVideoTrackIndex);
+        writeData(outputBuffer, bufferInfo, mVideoTrackIndex);
     }
 
     synchronized
-    public void writeAudioData(ByteBuffer outputBuffer, MediaCodec.BufferInfo bufferInfo){
+    public void writeAudioData(ByteBuffer outputBuffer, MediaCodec.BufferInfo bufferInfo) {
         if (mAudioTrackIndex == -1) {
             Log.i(TAG, String.format("pumpStream [%s] but muxer is not start.ignore..", "audio"));
             return;
         }
-        writeData(outputBuffer,bufferInfo,mAudioTrackIndex);
+        writeData(outputBuffer, bufferInfo, mAudioTrackIndex);
     }
 
     void writeData(ByteBuffer outputBuffer, MediaCodec.BufferInfo bufferInfo, int track) {
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             // The codec config data was pulled out and fed to the muxer when we got
             // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
-//            bufferInfo.size = 0;
+            bufferInfo.size = 0;
         } else if (bufferInfo.size != 0) {
             outputBuffer.position(bufferInfo.offset);
             outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
